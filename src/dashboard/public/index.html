@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RetryGuard</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --ink: #1a1a1a;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --panel: #f9fafb;
+      --blue: #2563eb;
+      --green: #059669;
+      --amber: #d97706;
+      --red: #dc2626;
+      --gray: #6b7280;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 32px 48px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .badge {
+      font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .badge.mock { color: var(--blue); border-color: #bfdbfe; background: #eff6ff; }
+    .badge.real { color: var(--amber); border-color: #fde68a; background: #fffbeb; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    button {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) { background: var(--panel); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.primary {
+      background: var(--ink);
+      color: #fff;
+      border-color: var(--ink);
+    }
+    button.primary:hover:not(:disabled) { background: #333; color: #fff; }
+    button.danger:not(.primary) { color: var(--red); border-color: #fecaca; }
+    button.danger:not(.primary):hover:not(:disabled) { background: #fef2f2; }
+
+    .flash {
+      min-height: 1.4em;
+      margin: -8px 0 16px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .flash.err { color: var(--red); }
+    .flash.ok { color: var(--green); }
+
+    .lookup-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .lookup-toggle {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid #bbf7d0;
+      background: #ecfdf5;
+      color: var(--green);
+      cursor: pointer;
+    }
+    .lookup-toggle.off {
+      border-color: #fecaca;
+      background: #fef2f2;
+      color: var(--red);
+    }
+    .lookup-toggle:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .protect-banner {
+      display: none;
+      margin: 0 0 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #fca5a5;
+      background: #fef2f2;
+      color: #991b1b;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .protect-banner.visible { display: block; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 960px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    section h2 {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mono {
+      font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+      font-size: 12.5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      background: #fff;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+    .pill.queued { background: #f3f4f6; color: var(--gray); }
+    .pill.running { background: #dbeafe; color: var(--blue); }
+    .pill.done { background: #d1fae5; color: var(--green); }
+    .pill.failed { background: #fef3c7; color: var(--amber); }
+    .pill.dead { background: #fee2e2; color: var(--red); }
+
+    .dup-body { padding: 16px 14px 20px; }
+    .dup-list { list-style: none; margin: 0 0 16px; padding: 0; }
+    .dup-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+    .dup-list li:last-child { border-bottom: none; }
+    .count-ok { color: var(--green); font-weight: 600; }
+    .count-bad { color: var(--red); font-weight: 700; }
+
+    .dup-total {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      margin: 0;
+    }
+    .dup-total.ok { color: var(--green); }
+    .dup-total.bad { color: var(--red); }
+
+    .empty {
+      padding: 20px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .logs {
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .log-row {
+      display: grid;
+      grid-template-columns: 72px 44px 100px 120px 1fr;
+      gap: 8px;
+      padding: 8px 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 12.5px;
+    }
+    .log-row:last-child { border-bottom: none; }
+    .log-time { color: var(--muted); }
+    .log-attempt { color: var(--muted); font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+    .log-worker { font-weight: 600; }
+    .log-step { color: var(--blue); }
+
+    footer {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>RetryGuard - durable jobs with safe DocuSign retries</h1>
+      <span id="modeBadge" class="badge">…</span>
+    </header>
+
+    <div class="lookup-row">
+      <button type="button" id="lookupToggle" class="lookup-toggle" aria-pressed="true">
+        Lookup protection: ON
+      </button>
+      <span style="font-size:13px;color:var(--muted)">Applies to the next demo run</span>
+    </div>
+    <div id="protectBanner" class="protect-banner" role="alert">
+      Lookup protection is OFF - ensureEnvelope will skip find-before-create.
+      Run "Lost response (timeout)" to show duplicate envelopes (Duplicates &gt; 0).
+    </div>
+
+    <div class="actions">
+      <button type="button" data-action="enqueue" class="primary">Enqueue 3 jobs</button>
+      <button type="button" data-demo="normal">Normal run</button>
+      <button type="button" data-demo="crash">Crash after create</button>
+      <button type="button" data-demo="timeout">Lost response (timeout)</button>
+      <button type="button" data-demo="concurrent">2 workers concurrently</button>
+      <button type="button" data-action="reset" class="danger">Reset</button>
+    </div>
+    <div id="flash" class="flash"></div>
+
+    <div class="grid">
+      <section>
+        <h2>Jobs</h2>
+        <div id="jobsPanel"><div class="empty">Loading…</div></div>
+      </section>
+      <section>
+        <h2>Duplicate check</h2>
+        <div class="dup-body">
+          <ul id="dupList" class="dup-list"></ul>
+          <p id="dupTotal" class="dup-total ok">Duplicates: 0</p>
+        </div>
+      </section>
+    </div>
+
+    <section>
+      <h2>Live log</h2>
+      <div id="logsPanel" class="logs"><div class="empty">No logs yet</div></div>
+    </section>
+
+    <footer>Auto-refreshes every 2s · API on this host</footer>
+  </div>
+
+  <script>
+    const flashEl = document.getElementById("flash");
+    const modeBadge = document.getElementById("modeBadge");
+    const jobsPanel = document.getElementById("jobsPanel");
+    const dupList = document.getElementById("dupList");
+    const dupTotal = document.getElementById("dupTotal");
+    const logsPanel = document.getElementById("logsPanel");
+    const lookupToggle = document.getElementById("lookupToggle");
+    const protectBanner = document.getElementById("protectBanner");
+    const actionButtons = [...document.querySelectorAll("[data-action], [data-demo]")];
+
+    let busy = false;
+    let lookupProtection = true;
+
+    function renderLookupUi() {
+      lookupToggle.textContent =
+        "Lookup protection: " + (lookupProtection ? "ON" : "OFF");
+      lookupToggle.classList.toggle("off", !lookupProtection);
+      lookupToggle.setAttribute("aria-pressed", lookupProtection ? "true" : "false");
+      protectBanner.classList.toggle("visible", !lookupProtection);
+    }
+
+    function shortId(id) {
+      return id ? id.slice(0, 8) + "…" : "-";
+    }
+
+    /** Move the black "selected" style to the button that was just clicked. */
+    function selectPrimary(btn) {
+      for (const b of actionButtons) b.classList.remove("primary");
+      btn.classList.add("primary");
+    }
+
+    function setFlash(msg, kind) {
+      flashEl.textContent = msg || "";
+      flashEl.className = "flash" + (kind ? " " + kind : "");
+    }
+
+    function setBusy(on, label) {
+      busy = on;
+      for (const btn of actionButtons) btn.disabled = on;
+      lookupToggle.disabled = on;
+      if (on && label) setFlash(label, "");
+    }
+
+    async function api(path, opts) {
+      const res = await fetch(path, opts);
+      const text = await res.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text }; }
+      if (!res.ok) {
+        const err = (body && (body.error || body.message)) || res.statusText;
+        throw new Error(err);
+      }
+      return body;
+    }
+
+    function renderJobs(jobs) {
+      if (!jobs.length) {
+        jobsPanel.innerHTML = '<div class="empty">No jobs - enqueue or run a demo</div>';
+        return;
+      }
+      const rows = jobs.map((j) => {
+        const env =
+          j.result && j.result.envelopeId
+            ? shortId(j.result.envelopeId)
+            : "-";
+        return (
+          "<tr>" +
+          '<td class="mono">' + shortId(j.id) + "</td>" +
+          '<td><span class="pill ' + j.status + '">' + j.status + "</span></td>" +
+          "<td>" + j.attempts + "</td>" +
+          '<td class="mono">' + (j.last_step || "-") + "</td>" +
+          "<td>" + (j.completed_by || j.locked_by || "-") + "</td>" +
+          '<td class="mono">' + env + "</td>" +
+          "</tr>"
+        );
+      }).join("");
+
+      jobsPanel.innerHTML =
+        "<table><thead><tr>" +
+        "<th>Id</th><th>Status</th><th>Attempts</th><th>Last step</th><th>Worker</th><th>Envelope</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table>";
+    }
+
+    function renderDupes(data) {
+      const counts = data.counts || [];
+      if (!counts.length) {
+        dupList.innerHTML = '<li class="empty" style="border:0;padding:0">No envelopes in mock store</li>';
+      } else {
+        dupList.innerHTML = counts.map((c) => {
+          const cls = c.count > 1 ? "count-bad" : "count-ok";
+          return (
+            "<li>" +
+            '<span class="mono">' + shortId(c.jobId) + "</span>" +
+            '<span class="' + cls + '">× ' + c.count + "</span>" +
+            "</li>"
+          );
+        }).join("");
+      }
+      const d = data.duplicates || 0;
+      dupTotal.textContent = "Duplicates: " + d;
+      dupTotal.className = "dup-total " + (d > 0 ? "bad" : "ok");
+    }
+
+    function renderLogs(logs) {
+      if (!logs.length) {
+        logsPanel.innerHTML = '<div class="empty">No logs yet</div>';
+        return;
+      }
+      logsPanel.innerHTML = logs.map((l) => {
+        const t = l.created_at
+          ? new Date(l.created_at).toLocaleTimeString()
+          : "";
+        const attempt =
+          l.attempt != null ? "#" + l.attempt : "";
+        return (
+          '<div class="log-row">' +
+          '<span class="log-time mono">' + t + "</span>" +
+          '<span class="log-attempt">' + attempt + "</span>" +
+          '<span class="log-worker">' + (l.worker || "-") + "</span>" +
+          '<span class="log-step mono">' + (l.step || "-") + "</span>" +
+          "<span>" + escapeHtml(l.message || "") + "</span>" +
+          "</div>"
+        );
+      }).join("");
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    async function refresh() {
+      try {
+        const [jobsBody, logsBody, countsBody] = await Promise.all([
+          api("/api/jobs"),
+          api("/api/logs"),
+          api("/api/envelope-counts"),
+        ]);
+        renderJobs(jobsBody.jobs || []);
+        renderLogs(logsBody.logs || []);
+        renderDupes(countsBody);
+      } catch (err) {
+        setFlash("Refresh failed: " + err.message, "err");
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const cfg = await api("/api/config");
+        const mode = (cfg.mode || "mock").toLowerCase();
+        modeBadge.textContent = "DOCUSIGN_MODE=" + mode;
+        modeBadge.className = "badge " + (mode === "real" ? "real" : "mock");
+        if (typeof cfg.lookupProtection === "boolean") {
+          lookupProtection = cfg.lookupProtection;
+        }
+        renderLookupUi();
+      } catch {
+        modeBadge.textContent = "DOCUSIGN_MODE=?";
+        renderLookupUi();
+      }
+    }
+
+    lookupToggle.addEventListener("click", async () => {
+      const next = !lookupProtection;
+      try {
+        const body = await api("/api/lookup-protection", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled: next }),
+        });
+        lookupProtection = Boolean(body.lookupProtection);
+        renderLookupUi();
+        setFlash(
+          lookupProtection
+            ? "Lookup protection ON - demos stay duplicate-safe"
+            : "Lookup protection OFF - timeout demo will create duplicates",
+          lookupProtection ? "ok" : "err"
+        );
+      } catch (err) {
+        setFlash(err.message, "err");
+      }
+    });
+
+    document.querySelector('[data-action="enqueue"]').addEventListener("click", async (e) => {
+      selectPrimary(e.currentTarget);
+      setBusy(true, "Enqueueing 3 jobs…");
+      try {
+        const body = await api("/api/enqueue", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ count: 3 }),
+        });
+        setFlash("Enqueued " + body.count + " job(s)", "ok");
+        await refresh();
+      } catch (err) {
+        setFlash(err.message, "err");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    document.querySelector('[data-action="reset"]').addEventListener("click", async (e) => {
+      selectPrimary(e.currentTarget);
+      setBusy(true, "Resetting…");
+      try {
+        await api("/api/reset", { method: "POST" });
+        setFlash("Reset complete", "ok");
+        await refresh();
+      } catch (err) {
+        setFlash(err.message, "err");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    for (const btn of document.querySelectorAll("[data-demo]")) {
+      btn.addEventListener("click", async (e) => {
+        selectPrimary(e.currentTarget);
+        const scenario = btn.getAttribute("data-demo");
+        setBusy(true, "Running demo: " + scenario + "…");
+        try {
+          const body = await api("/api/demo/" + scenario, { method: "POST" });
+          const dupes = body.duplicates || 0;
+          const kind =
+            !lookupProtection && scenario === "timeout" && dupes > 0
+              ? "err"
+              : "ok";
+          setFlash(body.message || ("Demo " + scenario + " finished"), kind);
+          await refresh();
+        } catch (err) {
+          setFlash(err.message, "err");
+        } finally {
+          setBusy(false);
+          await refresh();
+        }
+      });
+    }
+
+    loadConfig();
+    refresh();
+    setInterval(() => { if (!busy) refresh(); }, 2000);
+  </script>
+</body>
+</html>

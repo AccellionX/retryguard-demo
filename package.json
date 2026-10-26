@@ -1,0 +1,41 @@
+{
+  "name": "retryguard-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RetryGuard demo - durable job queue with DocuSign mock",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "db:reset": "tsx scripts/db-reset.ts",
+    "mock:start": "tsx src/mock-docusign/server.ts",
+    "worker": "tsx src/worker.ts",
+    "enqueue": "tsx src/scripts/enqueue.ts",
+    "status": "tsx src/scripts/status.ts",
+    "demo": "tsx src/scripts/demo.ts",
+    "demo:normal": "tsx src/scripts/demo.ts normal",
+    "demo:crash": "tsx src/scripts/demo.ts crash",
+    "demo:timeout": "tsx src/scripts/demo.ts timeout",
+    "demo:concurrent": "tsx src/scripts/demo.ts concurrent",
+    "dashboard": "tsx src/dashboard/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^2.1.9"
+  }
+}

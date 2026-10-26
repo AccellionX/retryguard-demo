@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+data/mock-envelopes.json
+data/test-mock-envelopes.json
+data/crashed.flag
+data/test-crashed.flag
+
